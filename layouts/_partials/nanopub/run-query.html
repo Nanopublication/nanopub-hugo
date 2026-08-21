@@ -1,0 +1,53 @@
+{{- /*
+  Runs a nanopub query template and returns its result rows.
+
+  Args:
+    endpoint  Nanopub Query base URL, e.g. https://query.nanodash.net/
+    queryId   query template id, "<artifact-code>/<query-name>"
+    params    map of query parameters; $ORCID and $PUBKEYS are substituted
+    orcid     value for the $ORCID token
+    pubkeys   value for the $PUBKEYS token
+    label     name used in error messages
+
+  Returns a slice of flat maps — one per binding, {var: value} with the SPARQL
+  JSON type wrapper removed, so templates can write .paper_label rather than
+  .paper_label.value.
+*/ -}}
+
+{{- $endpoint := .endpoint | default "https://query.nanodash.net/" -}}
+{{- $queryId := .queryId -}}
+{{- $label := .label | default $queryId -}}
+
+{{- $qs := slice -}}
+{{- range $k, $v := (.params | default dict) -}}
+  {{- $val := replace (printf "%v" $v) "$ORCID" ($.orcid | default "") -}}
+  {{- $val = replace $val "$PUBKEYS" ($.pubkeys | default "") -}}
+  {{- $qs = $qs | append (printf "%s=%s" $k (urlquery $val)) -}}
+{{- end -}}
+
+{{- $url := printf "%sapi/%s" $endpoint $queryId -}}
+{{- with $qs -}}
+  {{- $url = printf "%s?%s" $url (delimit . "&") -}}
+{{- end -}}
+
+{{- $rows := slice -}}
+{{- $opts := dict "headers" (dict "Accept" "application/sparql-results+json") -}}
+
+{{- with try (resources.GetRemote $url $opts) -}}
+  {{- with .Err -}}
+    {{- partial "nanopub/fatal.html" (dict "label" $label "err" .) -}}
+  {{- else with .Value -}}
+    {{- /* Unmarshal the *string*: Hugo cannot map a "+json" subtype to a
+           format, but it sniffs JSON from content without complaint. */ -}}
+    {{- $data := .Content | transform.Unmarshal -}}
+    {{- range $data.results.bindings -}}
+      {{- $flat := dict -}}
+      {{- range $k, $v := . -}}
+        {{- $flat = merge $flat (dict $k (index $v "value")) -}}
+      {{- end -}}
+      {{- $rows = $rows | append $flat -}}
+    {{- end -}}
+  {{- end -}}
+{{- end -}}
+
+{{- return $rows -}}

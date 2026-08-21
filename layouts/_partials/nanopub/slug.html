@@ -1,0 +1,15 @@
+{{- /*
+  A path-safe slug.
+
+  urlize alone is not enough: it leaves "#" in place, and a label like
+  "Nano Session #24" then produces a directory whose URL truncates at the
+  fragment marker. Everything outside [a-z0-9-] goes.
+
+  Args: the string. Returns: the slug, never empty.
+*/ -}}
+{{- $s := . | plainify | lower | urlize -}}
+{{- $s = replaceRE `[^a-z0-9-]+` "-" $s -}}
+{{- $s = replaceRE `-{2,}` "-" $s -}}
+{{- $s = trim $s "-" -}}
+{{- if not $s -}}{{- $s = "item" -}}{{- end -}}
+{{- return (trim (substr $s 0 80) "-") -}}

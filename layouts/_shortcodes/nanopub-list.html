@@ -1,0 +1,17 @@
+{{- /*
+  Live list, queried in the browser.
+
+      {{< nanopub-list section="activity" >}}
+      {{< nanopub-list query="RA.../get-x" params="{...}" titleField="label" >}}
+*/ -}}
+{{- partial "nanopub/live.html" (dict
+  "page" .Page
+  "kind" "list"
+  "section" (.Get "section")
+  "query" (.Get "query")
+  "params" (.Get "params")
+  "titleField" (.Get "titleField")
+  "dateField" (.Get "dateField")
+  "limit" (.Get "limit")
+  "groupByYear" (.Get "groupByYear")
+) -}}

@@ -1,0 +1,79 @@
+{{- /*
+  Emits a <nanopub-list> or <nanopub-table> that queries the network in the
+  browser rather than at build time.
+
+  Content adapters run only at build time, so anything that must be current on
+  every visit lives here instead. This is the same trade the standalone builder
+  called `live` mode.
+
+  Args:
+    kind     "list" (default) or "table"
+    section  id of a section in params.nanopub.sections — supplies everything below
+    query    query nanopub URI or query template id (when no section is given)
+    params   JSON string of query parameters
+    titleField, dateField, columns, limit, groupByYear
+*/ -}}
+
+{{- $np := site.Params.nanopub -}}
+{{- $kind := .kind | default "list" -}}
+{{- $query := .query -}}
+{{- $params := .params -}}
+{{- $titleField := .titleField -}}
+{{- $dateField := .dateField -}}
+{{- $columns := .columns -}}
+{{- $limit := .limit -}}
+{{- $groupByYear := .groupByYear -}}
+{{- $label := "nanopub live element" -}}
+
+{{- with .section -}}
+  {{- $sec := partial "nanopub/section-config.html" (dict "id" .) -}}
+  {{- $label = printf "section %q" . -}}
+  {{- $query = $query | default $sec.query -}}
+  {{- $fields := $sec.fields | default dict -}}
+  {{- $titleField = $titleField | default $fields.title -}}
+  {{- $dateField = $dateField | default $fields.date -}}
+  {{- $limit = $limit | default $sec.limit -}}
+  {{- if and (not $columns) $sec.columns -}}
+    {{- $columns = $sec.columns | jsonify -}}
+  {{- end -}}
+  {{- if not $params -}}
+    {{- $qp := dict -}}
+    {{- range $k, $v := ($sec.queryParams | default dict) -}}
+      {{- $val := replace (printf "%v" $v) "$ORCID" ($np.orcid | default "") -}}
+      {{- $val = replace $val "$PUBKEYS" ($np.pubkeys | default "") -}}
+      {{- $qp = merge $qp (dict $k $val) -}}
+    {{- end -}}
+    {{- with $qp -}}{{- $params = . | jsonify -}}{{- end -}}
+  {{- end -}}
+{{- end -}}
+
+{{- if not $query -}}
+  {{- errorf "nanopub-hugo: live element needs either a section id or a query" -}}
+{{- end -}}
+
+{{- $qid := partial "nanopub/resolve-query.html" (dict "query" $query "label" $label) -}}
+
+{{- partial "nanopub/elements-script.html" . -}}
+
+{{- if eq $kind "table" -}}
+  <nanopub-table
+    query-template="{{ $qid }}"
+    endpoint="{{ $np.endpoint }}"
+    {{ with $params }}params='{{ . | safeHTMLAttr }}'{{ end }}
+    {{ with $columns }}columns='{{ . | safeHTMLAttr }}'{{ end }}
+    {{ with $dateField }}date-field="{{ . }}"{{ end }}
+    {{ with $limit }}limit="{{ . }}"{{ end }}
+    link-target="_blank"
+  ></nanopub-table>
+{{- else -}}
+  <nanopub-list
+    query-template="{{ $qid }}"
+    endpoint="{{ $np.endpoint }}"
+    {{ with $params }}params='{{ . | safeHTMLAttr }}'{{ end }}
+    {{ with $titleField }}title-field="{{ . }}"{{ end }}
+    {{ with $dateField }}date-field="{{ . }}"{{ end }}
+    {{ with $limit }}limit="{{ . }}"{{ end }}
+    {{ if $groupByYear }}group-by-year{{ end }}
+    link-target="_blank"
+  ></nanopub-list>
+{{- end -}}

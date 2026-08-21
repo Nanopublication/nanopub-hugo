@@ -1,0 +1,54 @@
+{{- /*
+  Resolves a section's `query` to a query template id.
+
+  Accepts either form:
+    https://w3id.org/np/RAz49Ff...    a query nanopub URI
+    RAz49Ff.../get-past-event-participations   a query template id
+
+  Given a URI, the nanopub is fetched as JSON-LD and the node typed
+  grlc:grlc-query is located; its @id minus the w3id prefix is the query id.
+  Hugo caches the fetch, so this costs one request per query per cache lifetime.
+
+  Args: query, label
+  Returns: the query template id (string)
+*/ -}}
+
+{{- $query := .query -}}
+{{- $label := .label | default $query -}}
+
+{{- if hasPrefix $query "http" -}}
+  {{- $found := "" -}}
+  {{- /* Hugo's errorf logs and keeps going, so track the failure: without this
+         a fetch error is followed by a misleading "declares no grlc:grlc-query". */ -}}
+  {{- $fetched := true -}}
+  {{- $opts := dict "headers" (dict "Accept" "application/ld+json") -}}
+  {{- with try (resources.GetRemote $query $opts) -}}
+    {{- with .Err -}}
+      {{- $fetched = false -}}
+      {{- partial "nanopub/fatal.html" (dict "label" $label "err" .) -}}
+    {{- else with .Value -}}
+      {{- range .Content | transform.Unmarshal -}}
+        {{- range (index . "@graph") -}}
+          {{- $node := . -}}
+          {{- range (index $node "@type" | default slice) -}}
+            {{- if hasSuffix . "/grlc/grlc-query" -}}
+              {{- $found = index $node "@id" -}}
+            {{- end -}}
+          {{- end -}}
+        {{- end -}}
+      {{- end -}}
+    {{- end -}}
+  {{- end -}}
+
+  {{- if $found -}}
+    {{- /* Nanopubs serialise the query node's IRI with either separator —
+           <...RAxxx/name> or <...RAxxx#name> — depending on the tool that
+           minted them. The API wants "<artifact-code>/<name>" either way. */ -}}
+    {{- $query = replaceRE `^https?://w3id\.org/np/` "" $found -}}
+    {{- $query = replace $query "#" "/" -}}
+  {{- else if $fetched -}}
+    {{- errorf "nanopub-hugo: %q declares no grlc:grlc-query — is it really a query nanopublication?" $query -}}
+  {{- end -}}
+{{- end -}}
+
+{{- return $query -}}

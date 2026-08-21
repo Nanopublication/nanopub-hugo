@@ -1,0 +1,16 @@
+{{ define "main" }}
+  <section class="np-section">
+    <h2>{{ .Title }}</h2>
+    {{ with .Params.blurb }}<p class="blurb">{{ . }}</p>{{ end }}
+    {{ if eq .Params.mode "live" }}
+      {{ partial "nanopub/live.html" (dict "section" .Params.section "groupByYear" true) }}
+    {{ else if .Pages }}
+      {{ range .Pages.ByDate.Reverse.GroupByDate "2006" }}
+        <h3>{{ .Key }}</h3>
+        <ul class="np-list">{{ range .Pages }}{{ partial "item.html" . }}{{ end }}</ul>
+      {{ end }}
+    {{ else }}
+      <p class="np-empty">{{ .Params.empty }}</p>
+    {{ end }}
+  </section>
+{{ end }}

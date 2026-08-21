@@ -1,0 +1,5 @@
+{{ define "main" }}
+  <section class="np-section"><h2>{{ .Title }}</h2>
+    <ul class="np-list">{{ range .Pages.ByDate.Reverse }}{{ partial "item.html" . }}{{ end }}</ul>
+  </section>
+{{ end }}

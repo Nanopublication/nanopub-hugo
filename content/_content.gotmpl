@@ -1,0 +1,195 @@
+{{- /*
+  nanopub-hugo — content adapter.
+
+  One adapter at the content root builds every configured section, so a site
+  using this module needs no content files at all: the sections are declared in
+  hugo.toml and the pages appear.
+
+  To take over a single section, put your own content/<id>/_content.gotmpl in
+  the site — a site-level adapter wins over this one for that directory.
+*/ -}}
+
+{{- $ctx := . -}}
+{{- $np := site.Params.nanopub -}}
+
+{{- with $np.sections -}}
+  {{- range . -}}
+    {{- $sec := . -}}
+    {{- $id := $sec.id -}}
+
+    {{- if not $id -}}
+      {{- errorf "nanopub-hugo: every entry in params.nanopub.sections needs an id" -}}
+    {{- end -}}
+
+    {{- $qid := partial "nanopub/resolve-query.html" (dict
+      "query" $sec.query
+      "label" $id
+    ) -}}
+
+    {{- $fields := $sec.fields | default dict -}}
+    {{- $titleField := $fields.title | default "label" -}}
+
+    {{- /* A live section is rendered in the browser by <nanopub-list>, so there
+           is nothing to fetch or build here beyond the section page itself. */ -}}
+    {{- $live := eq ($sec.mode | default "static") "live" -}}
+
+    {{- $rows := slice -}}
+    {{- if not $live -}}
+      {{- $rows = partial "nanopub/run-query.html" (dict
+        "endpoint" $np.endpoint
+        "queryId" $qid
+        "params" $sec.queryParams
+        "orcid" $np.orcid
+        "pubkeys" $np.pubkeys
+        "label" $id
+      ) -}}
+    {{- end -}}
+
+    {{- /* Path assignment must not depend on the order the endpoint happens to
+           return rows in, or permalinks churn between builds. Sort by nanopub
+           URI (unique and stable) before assigning slugs. */ -}}
+    {{- $items := slice -}}
+    {{- range $i, $row := $rows -}}
+      {{- $key := printf "%06d" $i -}}
+      {{- with index $row "np" -}}{{- $key = . -}}{{- end -}}
+      {{- $items = $items | append (dict "key" $key "row" $row) -}}
+    {{- end -}}
+    {{- $items = sort $items "key" -}}
+
+    {{- /* Create the section page explicitly. Without it a section whose query
+           returns nothing would not exist at all — the nav would 404 and the
+           "nothing here yet" state would never render. It also lets the section
+           carry its configured title and blurb rather than a title guessed
+           from the path. */ -}}
+    {{- $ctx.AddPage (dict
+      "kind" "section"
+      "path" $id
+      "title" ($sec.title | default $id)
+      "params" (dict
+        "blurb" ($sec.blurb | default "")
+        "empty" ($sec.empty | default "Nothing here yet.")
+        "queryId" $qid
+        "section" $id
+        "mode" ($sec.mode | default "static")
+      )
+    ) -}}
+
+    {{- $seen := dict -}}
+    {{- $added := 0 -}}
+
+    {{- range $i, $item := $items -}}
+      {{- $row := $item.row -}}
+      {{- $title := "" -}}
+      {{- with index $row $titleField -}}{{- $title = . -}}{{- end -}}
+
+      {{- /* A row with no title has nothing to be a page about. */ -}}
+      {{- if $title -}}
+        {{- $slug := partial "nanopub/slug.html" $title -}}
+        {{- if index $seen $slug -}}
+          {{- $suffix := printf "%d" $i -}}
+          {{- with index $row "np" -}}
+            {{- $suffix = substr (index (last 1 (split . "/")) 0) 0 10 -}}
+          {{- end -}}
+          {{- $slug = printf "%s-%s" $slug (lower $suffix) -}}
+        {{- end -}}
+        {{- $seen = merge $seen (dict $slug true) -}}
+
+        {{- /* Every binding is exposed under .Params.row, so a layout can reach
+               a variable the section config never named. */ -}}
+        {{- $params := dict
+          "row" $row
+          "section" $id
+          "queryId" $qid
+        -}}
+
+        {{- with index $row "np" -}}
+          {{- $params = merge $params (dict "nanopub" .) -}}
+        {{- end -}}
+        {{- with $fields.link -}}
+          {{- with index $row . -}}
+            {{- $params = merge $params (dict "source" .) -}}
+          {{- end -}}
+        {{- end -}}
+        {{- with $fields.summary -}}
+          {{- with index $row . -}}
+            {{- $params = merge $params (dict "summary" .) -}}
+          {{- end -}}
+        {{- end -}}
+
+        {{- /* Taxonomies are the reason to model these as real pages: tag
+               publications by journal, events by venue, and Hugo builds the
+               term pages for free. Multi-valued bindings arrive as one
+               newline-separated literal. */ -}}
+        {{- range $taxonomy, $field := ($sec.taxonomies | default dict) -}}
+          {{- with index $row $field -}}
+            {{- $values := slice -}}
+            {{- range (split . "\n") -}}
+              {{- with trim . " " -}}
+                {{- $values = $values | append . -}}
+              {{- end -}}
+            {{- end -}}
+            {{- with $values -}}
+              {{- $params = merge $params (dict $taxonomy .) -}}
+            {{- end -}}
+          {{- end -}}
+        {{- end -}}
+
+        {{- $page := dict
+          "kind" "page"
+          "path" (printf "%s/%s" $id $slug)
+          "title" $title
+          "params" $params
+        -}}
+
+        {{- with $fields.date -}}
+          {{- with index $row . -}}
+            {{- with partial "nanopub/date.html" . -}}
+              {{- /* Even a well-shaped literal can be nonsense ("2026-13-45"),
+                     and one bad row must not fail the build. */ -}}
+              {{- with try (time.AsTime .) -}}
+                {{- with .Value -}}
+                  {{- $page = merge $page (dict "dates" (dict "date" .)) -}}
+                {{- end -}}
+              {{- end -}}
+            {{- end -}}
+          {{- end -}}
+        {{- end -}}
+
+        {{- /* Body text.
+
+               Default to text/markdown, which Hugo allows from an adapter out
+               of the box and which escapes raw HTML unless the site opts into
+               Goldmark's unsafe mode. Fields carrying markup have two honest
+               options, both explicit:
+
+                 contentPlain = true       strip tags, keep the words
+                 contentMediaType = 'text/html'   plus [security] allowContent
+
+               The second is a real trust decision — this is markup from an open
+               network and nothing sanitises it — so Hugo makes the site say so.
+            */ -}}
+        {{- with $fields.content -}}
+          {{- with index $row . -}}
+            {{- $value := . -}}
+            {{- $mt := $sec.contentMediaType | default "text/markdown" -}}
+            {{- if $sec.contentPlain -}}
+              {{- $value = plainify $value -}}
+              {{- $mt = "text/markdown" -}}
+            {{- end -}}
+            {{- $page = merge $page (dict "content" (dict
+              "mediaType" $mt
+              "value" $value
+            )) -}}
+          {{- end -}}
+        {{- end -}}
+
+        {{- $ctx.AddPage $page -}}
+        {{- $added = add $added 1 -}}
+      {{- end -}}
+    {{- end -}}
+
+    {{- if $np.verbose -}}
+      {{- warnf "nanopub-hugo: %s → %d page(s) from %s" $id $added $qid -}}
+    {{- end -}}
+  {{- end -}}
+{{- end -}}

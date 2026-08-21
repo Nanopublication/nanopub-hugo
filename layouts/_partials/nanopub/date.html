@@ -1,0 +1,21 @@
+{{- /*
+  Normalises an RDF date literal to something time.AsTime can parse.
+
+  Dates in the network arrive at whatever granularity the publisher used:
+  xsd:gYear ("2008"), xsd:gYearMonth ("2008-05"), xsd:date ("2008-05-17") and
+  xsd:dateTime ("2026-08-21T10:50:40.128Z") all show up in practice, and
+  time.AsTime fails the whole build on the first two.
+
+  Args: the raw literal. Returns a parseable string, or "" if it is not a date
+  at all — the caller then leaves the page undated rather than failing.
+*/ -}}
+{{- $v := trim (printf "%v" .) " " -}}
+{{- $out := "" -}}
+{{- if findRE `^\d{4}$` $v -}}
+  {{- $out = printf "%s-01-01" $v -}}
+{{- else if findRE `^\d{4}-\d{2}$` $v -}}
+  {{- $out = printf "%s-01" $v -}}
+{{- else if findRE `^\d{4}-\d{2}-\d{2}` $v -}}
+  {{- $out = $v -}}
+{{- end -}}
+{{- return $out -}}

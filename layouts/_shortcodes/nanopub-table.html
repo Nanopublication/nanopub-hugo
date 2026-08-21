@@ -1,0 +1,15 @@
+{{- /*
+  Live table, queried in the browser.
+
+      {{< nanopub-table section="projects" >}}
+*/ -}}
+{{- partial "nanopub/live.html" (dict
+  "page" .Page
+  "kind" "table"
+  "section" (.Get "section")
+  "query" (.Get "query")
+  "params" (.Get "params")
+  "columns" (.Get "columns")
+  "dateField" (.Get "dateField")
+  "limit" (.Get "limit")
+) -}}

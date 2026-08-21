@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{{ if .IsHome }}{{ site.Title }}{{ else }}{{ .Title }} — {{ site.Title }}{{ end }}</title>
+    <meta name="description" content="{{ site.Params.description }}" />
+    {{ with resources.Get "style.css" }}<link rel="stylesheet" href="{{ .RelPermalink }}" />{{ end }}
+  </head>
+  <body>
+    <div class="wrap">
+      <header>
+        <h1>{{ if .IsHome }}{{ site.Title }}{{ else }}<a href="{{ "/" | relURL }}">{{ site.Title }}</a>{{ end }}</h1>
+        <p class="lede">{{ site.Params.description }}</p>
+      </header>
+      {{ partial "nav.html" . }}
+      <main>{{ block "main" . }}{{ end }}</main>
+      {{ partial "footer.html" . }}
+    </div>
+  </body>
+</html>

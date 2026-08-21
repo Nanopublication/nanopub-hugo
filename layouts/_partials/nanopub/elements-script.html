@@ -1,0 +1,16 @@
+{{- /*
+  Loads the nanopub-elements custom elements, at most once per rendered page.
+
+  This deliberately uses Hugo's global `page` — the page actually being written
+  — rather than a page handed in by the caller. A front page that renders a live
+  section by looping over `site.GetPage` holds the *section* page in scope, so a
+  caller-supplied page would mark the section page as "script already loaded"
+  while emitting the tag into the home page. The section page then rendered a
+  <nanopub-list> with nothing to upgrade it.
+*/ -}}
+{{- with page -}}
+  {{- if not (.Store.Get "nanopubElementsLoaded") -}}
+    {{- .Store.Set "nanopubElementsLoaded" true -}}
+    <script type="module" src="https://esm.sh/@nanopub/nanopub-elements"></script>
+  {{- end -}}
+{{- end -}}

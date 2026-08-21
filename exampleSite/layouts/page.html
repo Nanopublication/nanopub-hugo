@@ -1,0 +1,20 @@
+{{ define "main" }}
+  {{ $nanodash := printf "%s/" (strings.TrimSuffix "/" (site.Params.nanopub.nanodash | default "https://nanodash.net/")) }}
+  <article class="np-section">
+    <h2>{{ .Title }}</h2>
+    <p class="np-meta">
+      {{ with .Date }}{{ if not .IsZero }}<time datetime="{{ .Format "2006-01-02" }}">{{ .Format "2006-01-02" }}</time>{{ end }}{{ end }}
+      {{ with .Params.source }}<a href="{{ . }}">{{ . }}</a>{{ end }}
+    </p>
+    {{ with .Params.summary }}<p class="np-body">{{ replace . "\n" ", " }}</p>{{ end }}
+    {{ with .Content }}<div class="np-body">{{ . }}</div>{{ end }}
+    {{ range $tax, $_ := site.Taxonomies }}
+      {{ with $.GetTerms $tax }}
+        <p class="np-meta">{{ range . }}<a href="{{ .RelPermalink }}">{{ .LinkTitle }}</a>{{ end }}</p>
+      {{ end }}
+    {{ end }}
+    {{ with .Params.nanopub }}
+      <p class="np-more"><a href="{{ printf "%snp?id=%s" $nanodash (. | urlquery) }}">Source nanopublication →</a></p>
+    {{ end }}
+  </article>
+{{ end }}

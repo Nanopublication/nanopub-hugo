@@ -1,0 +1,80 @@
+{{- /*
+  Profile facts for params.nanopub.orcid, read from the network using the same
+  well-known queries Nanodash uses for its user pages. A personal site should
+  not have to hand-maintain a name or an avatar that the network already knows.
+
+  Returns a dict:
+    name          display name from the most recent introduction
+    photo         profile picture URL
+    intro         URI of the introduction nanopublication
+    pubkeyHashes  slice of signing key hashes
+    pubkeys       the same, space-separated (what $PUBKEYS expands to)
+    stats         map of the user-stats keys, e.g. .stats.validNpCount
+
+  Anything set under params.nanopub.profile overrides what the network says.
+*/ -}}
+
+{{- $q := dict
+  "intros" "RAjHh6P11QFUaoPiMRBavdAnTq4YMJW4PB85oVFSBfYjU/get-all-user-intros"
+  "pics" "RAtcodMPmTrmBvdOqwYIrNNFDO74f8B_xo0qsOcKlCwTA/get-all-user-profile-pics"
+  "stats" "RA3U23LL3xbNwsu92fAqsKb0kagOud4f9TlRQq3evNJck/get-user-stats-from-userid"
+-}}
+
+{{- $np := site.Params.nanopub -}}
+{{- $orcid := $np.orcid -}}
+{{- $profile := dict
+  "name" ""
+  "photo" ""
+  "intro" ""
+  "pubkeyHashes" slice
+  "pubkeys" ""
+  "stats" dict
+-}}
+
+{{- with $orcid -}}
+  {{- $endpoint := $np.endpoint -}}
+
+  {{- /* The intro and picture queries return every user; filter to ours. */ -}}
+  {{- $intros := partial "nanopub/run-query.html" (dict
+    "endpoint" $endpoint "queryId" (index $q "intros") "label" "user introductions"
+  ) -}}
+  {{- $mine := sort (where $intros "user" .) "date" "desc" -}}
+
+  {{- with $mine -}}
+    {{- $profile = merge $profile (dict
+      "name" (index . 0).name
+      "intro" (index . 0).intronp
+    ) -}}
+    {{- $hashes := slice -}}
+    {{- range . -}}
+      {{- with .pubkeyHash -}}
+        {{- if not (in $hashes .) -}}{{- $hashes = $hashes | append . -}}{{- end -}}
+      {{- end -}}
+    {{- end -}}
+    {{- $profile = merge $profile (dict "pubkeyHashes" $hashes "pubkeys" (delimit $hashes " ")) -}}
+  {{- end -}}
+
+  {{- $pics := partial "nanopub/run-query.html" (dict
+    "endpoint" $endpoint "queryId" (index $q "pics") "label" "profile pictures"
+  ) -}}
+  {{- with where $pics "user" $orcid -}}
+    {{- $profile = merge $profile (dict "photo" (index . 0).imageUrl) -}}
+  {{- end -}}
+
+  {{- $stats := partial "nanopub/run-query.html" (dict
+    "endpoint" $endpoint "queryId" (index $q "stats")
+    "params" (dict "userid" "$ORCID") "orcid" $orcid "label" "user statistics"
+  ) -}}
+  {{- $statMap := dict -}}
+  {{- range $stats -}}
+    {{- $statMap = merge $statMap (dict .key .value) -}}
+  {{- end -}}
+  {{- $profile = merge $profile (dict "stats" $statMap) -}}
+{{- end -}}
+
+{{- /* Explicit config wins over the network. */ -}}
+{{- with $np.profile -}}
+  {{- $profile = merge $profile . -}}
+{{- end -}}
+
+{{- return $profile -}}

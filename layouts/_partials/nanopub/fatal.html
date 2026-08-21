@@ -1,0 +1,25 @@
+{{- /*
+  Turns a resources.GetRemote failure into an actionable message.
+
+  The media-type failure is by far the most common way this module fails for a
+  new user, and Hugo's own error gives no hint at the cause. A module cannot
+  contribute [security.http] to the host site (Hugo refuses, deliberately), so
+  the fix has to be pasted by hand — the least we can do is say exactly what.
+*/ -}}
+{{- $err := printf "%s" .err -}}
+{{- $label := .label -}}
+
+{{- if strings.Contains $err "failed to resolve media type" -}}
+  {{- errorf `nanopub-hugo: %q could not be fetched because your site does not allow the media types the nanopub network returns.
+
+Add this to your hugo.toml (a module cannot add it for you — Hugo does not let modules widen a site's security policy):
+
+    [security.http]
+    mediaTypes = ['^application/ld\+json', '^application/sparql-results\+json']
+
+Do not anchor those patterns with $: responses carry a ";charset=UTF-8" suffix.
+
+Original error: %s` $label $err -}}
+{{- else -}}
+  {{- errorf "nanopub-hugo: query %q failed: %s" $label $err -}}
+{{- end -}}

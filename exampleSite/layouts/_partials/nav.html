@@ -1,0 +1,7 @@
+{{ $cur := .RelPermalink }}
+<nav class="main-nav" aria-label="Sections">
+  {{ range sort (site.Params.nanopub.sections | default slice) "weight" }}
+    {{ $url := printf "/%s/" .id | relURL }}
+    <a href="{{ $url }}"{{ if eq $cur $url }} aria-current="page"{{ end }}>{{ .title | default .id }}</a>
+  {{ end }}
+</nav>

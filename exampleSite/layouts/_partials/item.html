@@ -1,0 +1,11 @@
+{{- $nanodash := printf "%s/" (strings.TrimSuffix "/" (site.Params.nanopub.nanodash | default "https://nanodash.net/")) -}}
+<li>
+  <div>
+    <a class="np-title" href="{{ .RelPermalink }}">{{ .Title }}</a>
+    {{ with .Params.summary }}<div class="np-body">{{ replace . "\n" ", " }}</div>{{ end }}
+  </div>
+  <div class="np-meta">
+    {{ with .Date }}{{ if not .IsZero }}<time datetime="{{ .Format "2006-01-02" }}">{{ .Format "2006" }}</time>{{ end }}{{ end }}
+    {{ with .Params.nanopub }}<a class="np-prov" href="{{ printf "%snp?id=%s" $nanodash (. | urlquery) }}" title="{{ . }}">np</a>{{ end }}
+  </div>
+</li>

@@ -1,0 +1,15 @@
+# Config contributed to any site that imports this module.
+#
+# Note what is NOT here: [security.http]. Hugo deliberately refuses to let a
+# module widen a host site's security policy, so the media-type allowlist that
+# resources.GetRemote needs must live in the site's own config. The adapter
+# detects its absence and tells the user exactly what to paste.
+
+[module]
+[module.hugoVersion]
+min = '0.146.0'
+
+[params.nanopub]
+endpoint = 'https://query.nanodash.net/'
+nanodash = 'https://nanodash.net/'
+sections = []

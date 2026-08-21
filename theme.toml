@@ -1,0 +1,13 @@
+name = "nanopub-hugo"
+license = "MIT"
+licenselink = "https://github.com/Nanopublication/nanopub-hugo/blob/main/LICENSE"
+description = "Build a Hugo site from the nanopublication network. Declare queries in your config; every result row becomes a page."
+homepage = "https://github.com/Nanopublication/nanopub-hugo"
+min_version = "0.146.0"
+
+tags = ["content adapter", "linked data", "rdf", "sparql", "nanopublications", "research", "academic", "api"]
+features = ["content adapter", "remote data", "taxonomies", "shortcodes", "no content files"]
+
+[author]
+  name = "Nanopublication"
+  homepage = "https://nanopub.net/"

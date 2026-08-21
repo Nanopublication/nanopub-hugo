@@ -1,0 +1,23 @@
+{{ define "main" }}
+  {{ range sort (site.Params.nanopub.sections | default slice) "weight" }}
+    {{ $sec := . }}
+    {{ with site.GetPage (printf "/%s" $sec.id) }}
+      <section class="np-section">
+        <h2><a href="{{ .RelPermalink }}">{{ $sec.title | default $sec.id }}</a></h2>
+        {{ with $sec.blurb }}<p class="blurb">{{ . }}</p>{{ end }}
+        {{ if eq $sec.mode "live" }}
+          {{ partial "nanopub/live.html" (dict "section" $sec.id) }}
+        {{ else if .Pages }}
+          <ul class="np-list">
+            {{ range first ($sec.limit | default 8) .Pages.ByDate.Reverse }}{{ partial "item.html" . }}{{ end }}
+          </ul>
+          {{ if gt (len .Pages) ($sec.limit | default 8) }}
+            <p class="np-more"><a href="{{ .RelPermalink }}">All {{ len .Pages }} →</a></p>
+          {{ end }}
+        {{ else }}
+          <p class="np-empty">{{ .Params.empty }}</p>
+        {{ end }}
+      </section>
+    {{ end }}
+  {{ end }}
+{{ end }}

@@ -1,0 +1,6 @@
+{{- /* Looks up one section from params.nanopub.sections. Args: id. */ -}}
+{{- $matches := where (site.Params.nanopub.sections | default slice) "id" .id -}}
+{{- if not $matches -}}
+  {{- errorf "nanopub-hugo: no section with id %q in params.nanopub.sections" .id -}}
+{{- end -}}
+{{- return (index $matches 0) -}}
