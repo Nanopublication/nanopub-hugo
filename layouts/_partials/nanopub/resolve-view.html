@@ -1,0 +1,86 @@
+{{- /*
+  Resolves a view nanopublication to the query it wraps.
+
+  A view is a published description of how a resource should be presented:
+
+    sub:papers-for-author-view a gen:ResourceView, gen:TabularView ;
+      dct:title                   "📚 My Papers" ;
+      gen:appliesToInstancesOf    gen:IndividualAgent ;
+      gen:hasStructuralPosition   "4.4.1.papers" ;
+      gen:hasViewQuery            <…/get-papers-for-author> ;
+      gen:hasViewQueryTargetField "author" .
+
+  Only the last two lines are read here. A view also carries a title and a
+  structural position, but presentation is the site's business — nanopub-hugo
+  takes the wiring (which query, and which of its parameters names the subject)
+  and leaves `title` and `weight` to hugo.toml.
+
+  Accepts a concrete view URI or a view *kind* URI: a kind nanopub describes
+  itself in the same shape, so both resolve. Matching prefers the node whose
+  @id is the URI asked for and falls back to the first gen:ResourceView in the
+  nanopub, which is what makes the kind form work.
+
+  Args: view, label
+  Returns: dict of "query" (query template id) and "targetField" (may be empty),
+           or an empty dict if the fetch failed.
+*/ -}}
+
+{{- $view := .view -}}
+{{- $label := .label | default $view -}}
+{{- $gen := "https://w3id.org/kpxl/gen/terms/" -}}
+
+{{- $node := dict -}}
+{{- $fallback := dict -}}
+{{- $fetched := true -}}
+
+{{- $opts := dict "headers" (dict "Accept" "application/ld+json") -}}
+{{- with try (resources.GetRemote $view $opts) -}}
+  {{- with .Err -}}
+    {{- $fetched = false -}}
+    {{- partial "nanopub/fatal.html" (dict "label" $label "err" .) -}}
+  {{- else with .Value -}}
+    {{- range .Content | transform.Unmarshal -}}
+      {{- range (index . "@graph") -}}
+        {{- $n := . -}}
+        {{- range (index $n "@type" | default slice) -}}
+          {{- if eq . (printf "%sResourceView" $gen) -}}
+            {{- if not $fallback -}}{{- $fallback = $n -}}{{- end -}}
+            {{- if eq (index $n "@id") $view -}}{{- $node = $n -}}{{- end -}}
+          {{- end -}}
+        {{- end -}}
+      {{- end -}}
+    {{- end -}}
+  {{- end -}}
+{{- end -}}
+
+{{- if and (not $node) $fallback -}}{{- $node = $fallback -}}{{- end -}}
+
+{{- $result := dict -}}
+
+{{- if $node -}}
+  {{- $query := "" -}}
+  {{- with index $node (printf "%shasViewQuery" $gen) -}}
+    {{- $query = index (index . 0) "@id" -}}
+  {{- end -}}
+
+  {{- if $query -}}
+    {{- /* hasViewQuery already points at "<nanopub>/<query-name>"; normalise it
+           the same way resolve-query.html does so both spellings of the
+           separator reach the API as "<artifact-code>/<name>". */ -}}
+    {{- $query = replaceRE `^https?://w3id\.org/np/` "" $query -}}
+    {{- $query = replace $query "#" "/" -}}
+
+    {{- $target := "" -}}
+    {{- with index $node (printf "%shasViewQueryTargetField" $gen) -}}
+      {{- $target = index (index . 0) "@value" -}}
+    {{- end -}}
+
+    {{- $result = dict "query" $query "targetField" $target -}}
+  {{- else if $fetched -}}
+    {{- errorf "nanopub-hugo: view %q declares no gen:hasViewQuery — is it really a view nanopublication?" $label -}}
+  {{- end -}}
+{{- else if $fetched -}}
+  {{- errorf "nanopub-hugo: %q contains no node typed gen:ResourceView — is it really a view nanopublication?" $label -}}
+{{- end -}}
+
+{{- return $result -}}

@@ -9,7 +9,8 @@
   Args:
     kind     "list" (default) or "table"
     section  id of a section in params.nanopub.sections — supplies everything below
-    query    query nanopub URI or query template id (when no section is given)
+    query    query nanopub URI or query template id (when no section is given);
+             overrides the section's own query or view
     params   JSON string of query parameters
     titleField, dateField, columns, limit, groupByYear
 */ -}}
@@ -25,10 +26,15 @@
 {{- $groupByYear := .groupByYear -}}
 {{- $label := "nanopub live element" -}}
 
+{{- /* Resolved here rather than below, because a section given by id may name
+       a view instead of a query — and a view also supplies the parameter that
+       carries the subject, which has to be in $params before they are
+       serialised for the browser. */ -}}
+{{- $qid := "" -}}
+
 {{- with .section -}}
   {{- $sec := partial "nanopub/section-config.html" (dict "id" .) -}}
   {{- $label = printf "section %q" . -}}
-  {{- $query = $query | default $sec.query -}}
   {{- $fields := $sec.fields | default dict -}}
   {{- $titleField = $titleField | default $fields.title -}}
   {{- $dateField = $dateField | default $fields.date -}}
@@ -36,9 +42,13 @@
   {{- if and (not $columns) $sec.columns -}}
     {{- $columns = $sec.columns | jsonify -}}
   {{- end -}}
+
+  {{- $source := partial "nanopub/section-source.html" (dict "section" $sec "label" $label) -}}
+  {{- if not $query -}}{{- $qid = $source.queryId -}}{{- end -}}
+
   {{- if not $params -}}
     {{- $qp := dict -}}
-    {{- range $k, $v := ($sec.queryParams | default dict) -}}
+    {{- range $k, $v := $source.params -}}
       {{- $val := replace (printf "%v" $v) "$ORCID" ($np.orcid | default "") -}}
       {{- $val = replace $val "$PUBKEYS" ($np.pubkeys | default "") -}}
       {{- $qp = merge $qp (dict $k $val) -}}
@@ -47,11 +57,14 @@
   {{- end -}}
 {{- end -}}
 
-{{- if not $query -}}
-  {{- errorf "nanopub-hugo: live element needs either a section id or a query" -}}
+{{- /* An explicit `query` argument overrides whatever the section resolved to. */ -}}
+{{- with $query -}}
+  {{- $qid = partial "nanopub/resolve-query.html" (dict "query" . "label" $label) -}}
 {{- end -}}
 
-{{- $qid := partial "nanopub/resolve-query.html" (dict "query" $query "label" $label) -}}
+{{- if not $qid -}}
+  {{- errorf "nanopub-hugo: live element needs either a section id or a query" -}}
+{{- end -}}
 
 {{- partial "nanopub/elements-script.html" . -}}
 

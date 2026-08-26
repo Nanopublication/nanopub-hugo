@@ -1,0 +1,53 @@
+{{- /*
+  Works out what a section actually queries, from either spelling:
+
+    query = '<query nanopub URI or template id>'
+    view  = '<view nanopub URI>'
+
+  A view names both the query and the parameter that carries the subject, so
+  `view` replaces `query` *and* the one queryParams entry that would otherwise
+  repeat the subject by hand:
+
+    query = 'https://w3id.org/np/RA-SYwh…'      view = 'https://w3id.org/np/RAR5Qf…/papers-for-author-view'
+    [queryParams]                          →    # nothing: the view says the
+    author = '$ORCID'                           # parameter is called "author"
+
+  The subject defaults to the `$ORCID` token, substituted downstream like any
+  other parameter value. Set `target` on the section to point a view at
+  something else — a space, an event — instead:
+
+    view   = 'https://w3id.org/np/RA2M67…/news-list-view'
+    target = 'https://w3id.org/spaces/knowledgepixels'
+
+  Anything in queryParams still wins, so a view's target parameter can be
+  overridden outright without abandoning the view.
+
+  Args: section (a section dict), label
+  Returns: dict of "queryId" and "params".
+*/ -}}
+
+{{- $sec := .section -}}
+{{- $label := .label | default $sec.id -}}
+
+{{- if and $sec.query $sec.view -}}
+  {{- errorf "nanopub-hugo: section %q sets both query and view — pick one (a view already names its query)" $label -}}
+{{- end -}}
+{{- if not (or $sec.query $sec.view) -}}
+  {{- errorf "nanopub-hugo: section %q sets neither query nor view" $label -}}
+{{- end -}}
+
+{{- $queryId := "" -}}
+{{- $params := $sec.queryParams | default dict -}}
+
+{{- with $sec.view -}}
+  {{- $resolved := partial "nanopub/resolve-view.html" (dict "view" . "label" $label) -}}
+  {{- $queryId = $resolved.query | default "" -}}
+  {{- with $resolved.targetField -}}
+    {{- $target := $sec.target | default "$ORCID" -}}
+    {{- $params = merge (dict . $target) $params -}}
+  {{- end -}}
+{{- else -}}
+  {{- $queryId = partial "nanopub/resolve-query.html" (dict "query" $sec.query "label" $label) | default "" -}}
+{{- end -}}
+
+{{- return (dict "queryId" $queryId "params" $params) -}}
