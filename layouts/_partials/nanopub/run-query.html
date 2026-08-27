@@ -18,36 +18,46 @@
 {{- $queryId := .queryId -}}
 {{- $label := .label | default $queryId -}}
 
-{{- $qs := slice -}}
-{{- range $k, $v := (.params | default dict) -}}
-  {{- $val := replace (printf "%v" $v) "$ORCID" ($.orcid | default "") -}}
-  {{- $val = replace $val "$PUBKEYS" ($.pubkeys | default "") -}}
-  {{- $qs = $qs | append (printf "%s=%s" $k (urlquery $val)) -}}
-{{- end -}}
-
-{{- $url := printf "%sapi/%s" $endpoint $queryId -}}
-{{- with $qs -}}
-  {{- $url = printf "%s?%s" $url (delimit . "&") -}}
-{{- end -}}
-
 {{- $rows := slice -}}
-{{- $opts := dict "headers" (dict "Accept" "application/sparql-results+json") -}}
 
-{{- with try (resources.GetRemote $url $opts) -}}
-  {{- with .Err -}}
-    {{- partial "nanopub/fatal.html" (dict "label" $label "err" .) -}}
-  {{- else with .Value -}}
-    {{- /* Unmarshal the *string*: Hugo cannot map a "+json" subtype to a
-           format, but it sniffs JSON from content without complaint. */ -}}
-    {{- $data := .Content | transform.Unmarshal -}}
-    {{- range $data.results.bindings -}}
-      {{- $flat := dict -}}
-      {{- range $k, $v := . -}}
-        {{- $flat = merge $flat (dict $k (index $v "value")) -}}
+{{- /* A partial gets exactly one return, so the whole body is guarded rather
+       than returning early. An empty queryId means resolution already failed
+       and said so; errorf logs and keeps going, and without this guard the
+       build follows that with a second, far less useful error about a URL
+       containing "%!s(<nil>)". */ -}}
+{{- if $queryId -}}
+
+  {{- $qs := slice -}}
+  {{- range $k, $v := (.params | default dict) -}}
+    {{- $val := replace (printf "%v" $v) "$ORCID" ($.orcid | default "") -}}
+    {{- $val = replace $val "$PUBKEYS" ($.pubkeys | default "") -}}
+    {{- $qs = $qs | append (printf "%s=%s" $k (urlquery $val)) -}}
+  {{- end -}}
+
+  {{- $url := printf "%sapi/%s" $endpoint $queryId -}}
+  {{- with $qs -}}
+    {{- $url = printf "%s?%s" $url (delimit . "&") -}}
+  {{- end -}}
+
+  {{- $opts := dict "headers" (dict "Accept" "application/sparql-results+json") -}}
+
+  {{- with try (resources.GetRemote $url $opts) -}}
+    {{- with .Err -}}
+      {{- partial "nanopub/fatal.html" (dict "label" $label "err" .) -}}
+    {{- else with .Value -}}
+      {{- /* Unmarshal the *string*: Hugo cannot map a "+json" subtype to a
+             format, but it sniffs JSON from content without complaint. */ -}}
+      {{- $data := .Content | transform.Unmarshal -}}
+      {{- range $data.results.bindings -}}
+        {{- $flat := dict -}}
+        {{- range $k, $v := . -}}
+          {{- $flat = merge $flat (dict $k (index $v "value")) -}}
+        {{- end -}}
+        {{- $rows = $rows | append $flat -}}
       {{- end -}}
-      {{- $rows = $rows | append $flat -}}
     {{- end -}}
   {{- end -}}
+
 {{- end -}}
 
 {{- return $rows -}}

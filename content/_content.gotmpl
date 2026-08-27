@@ -21,10 +21,13 @@
       {{- errorf "nanopub-hugo: every entry in params.nanopub.sections needs an id" -}}
     {{- end -}}
 
-    {{- $qid := partial "nanopub/resolve-query.html" (dict
-      "query" $sec.query
+    {{- /* A section names either a query or a view; a view names its own query
+           and the parameter that carries the subject. */ -}}
+    {{- $source := partial "nanopub/section-source.html" (dict
+      "section" $sec
       "label" $id
     ) -}}
+    {{- $qid := $source.queryId -}}
 
     {{- $fields := $sec.fields | default dict -}}
     {{- $titleField := $fields.title | default "label" -}}
@@ -38,7 +41,7 @@
       {{- $rows = partial "nanopub/run-query.html" (dict
         "endpoint" $np.endpoint
         "queryId" $qid
-        "params" $sec.queryParams
+        "params" $source.params
         "orcid" $np.orcid
         "pubkeys" $np.pubkeys
         "label" $id

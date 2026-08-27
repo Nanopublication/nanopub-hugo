@@ -120,7 +120,7 @@ content = 'abstract'                # → the page body
 venues = 'journal_label'            # taxonomy name → query variable
 ```
 
-`query` accepts either form:
+`query` accepts either form (see below for naming a `view` instead):
 
 | Form | Example |
 | --- | --- |
@@ -133,6 +133,70 @@ the wild are handled — some nanopubs serialise the query node as
 `<...RAxxx/name>`, others as `<...RAxxx#name>`.
 
 `$ORCID` and `$PUBKEYS` in `queryParams` are substituted from `params.nanopub`.
+
+### Naming a view instead of a query
+
+A section can name a **view nanopublication** instead of a query. A view is a
+published description of how some resource should be presented, and it already
+records which query answers it and which of that query's parameters carries the
+subject:
+
+```turtle
+sub:papers-for-author-view a gen:ResourceView, gen:TabularView ;
+  dct:title                   "📚 My Papers" ;
+  gen:appliesToInstancesOf    gen:IndividualAgent ;
+  gen:hasStructuralPosition   "4.4.1.papers" ;
+  gen:hasViewQuery            <…/get-papers-for-author> ;
+  gen:hasViewQueryTargetField "author" .
+```
+
+So these two sections are equivalent — the view already knows the parameter is
+called `author`, so `queryParams` disappears:
+
+```toml
+query = 'https://w3id.org/np/RA-SYwh12YqSOePu9OX9VD94KVuoG69ddkE4XET_zJShY'
+[params.nanopub.sections.queryParams]
+author = '$ORCID'
+```
+
+```toml
+view = 'https://w3id.org/np/RAR5QfVtTglBt4tuOYnlH6zs6MkLlYrFrMVYFrVGZOBJA/papers-for-author-view'
+```
+
+Only the last two lines of the view are read: `hasViewQuery` and
+`hasViewQueryTargetField`. A view also carries `dct:title` and
+`gen:hasStructuralPosition`, and **both are ignored** — what a section is
+called and where it sits in the nav is the site's decision, so `title` and
+`weight` stay in `hugo.toml`. Everything else a section can set — `blurb`,
+`empty`, `mode`, `fields`, `taxonomies` — is unaffected, because a view says
+nothing about which result variable is the title or the date.
+
+The subject defaults to the `$ORCID` token. Point a view at something else with
+`target`:
+
+```toml
+[[params.nanopub.sections]]
+id     = 'news'
+title  = 'News'
+view   = 'https://w3id.org/np/RA2M67…/news-list-view'
+target = 'https://w3id.org/spaces/knowledgepixels'   # → resource=<the space>
+```
+
+Anything in `queryParams` still wins over the view's target parameter, so a
+view can be reused with one parameter overridden rather than abandoned.
+
+Both the concrete view URI and its *kind* URI (the `dct:isVersionOf` target)
+resolve, since a kind nanopub describes itself in the same shape. A section
+that sets both `query` and `view`, or neither, is a build error.
+
+To find which views apply to a resource, ask the network — this is the query
+behind the view list on a Nanodash profile or space page:
+
+```sh
+curl -s -G 'https://query.knowledgepixels.com/api/RAkRcVrWX-5a2wXXp6A7W7XzmubUdRSe7wDS-PeH6GvgI/list-view-displays' \
+  --data-urlencode 'resource=https://orcid.org/0000-0...' \
+  -H 'Accept: application/sparql-results+json' | jq -r '.results.bindings[] | .view.value'
+```
 
 To find a query's variable names, run it once:
 
@@ -222,13 +286,24 @@ a date at all leaves the page undated rather than breaking the build.
 ## Caching and offline builds
 
 `resources.GetRemote` results go into Hugo's file cache, so warm rebuilds are
-near-instant and builds succeed with the network unavailable. Tune it:
+near-instant and builds succeed with the network unavailable.
+
+**Set `maxAge` yourself.** Hugo's default for this cache is `maxage = -1` —
+never expire. A section whose query legitimately returned nothing, or failed
+once, then stays empty on every later build no matter what the network says,
+and neither `--gc` (which prunes by age) nor `--ignoreCache` (which bypasses the
+cache for one build without replacing what is stored) clears it. A module cannot
+set this for you:
 
 ```toml
 [caches.getresource]
 dir = ':cacheDir/:project'
 maxAge = '4h'
 ```
+
+To force a refresh now, delete the stored responses under
+`<cacheDir>/<project>/filecache/getresource` — one file per request, each the
+raw HTTP response, so grepping them shows what a build actually saw.
 
 For a nightly rebuild in CI, cache the `resources/_gen` and Hugo cache
 directories between runs so a network failure degrades to stale content rather
@@ -240,10 +315,17 @@ succeeds and legitimately returns nothing renders the section's `empty` message.
 
 ## Example sites
 
-`exampleSite/` is the minimal demonstration: three sections, no personal data,
-and no query parameters — every query it uses is public and takes no arguments,
-so it builds for anyone. Two static sections (one with a taxonomy) and one live
-section, 111 pages.
+`exampleSite/` is the minimal demonstration: three sections, one per way of
+saying where the content comes from.
+
+| Section | Source | Also shows |
+| --- | --- | --- |
+| `publications` | `query` — a query nanopub, fetched at build time | a taxonomy (`journals`) |
+| `news` | `view` — a view nanopub, which names its own query | `target`, `contentPlain` |
+| `recent` | `mode = 'live'` — queried in the visitor's browser | no pages built |
+
+No personal data: every query and view it uses is public, and the only
+parameter passed is a public space, so it builds for anyone. 159 pages.
 
 ```sh
 cd exampleSite && hugo server
