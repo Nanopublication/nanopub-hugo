@@ -1,0 +1,8 @@
+{
+  "private": true,
+  "description": "Release tooling only. This package is never published; the Hugo module is consumed from the git tag.",
+  "devDependencies": {
+    "semantic-release": "^25.0.0",
+    "semantic-release-preconfigured-conventional-commits": "^1.1.157"
+  }
+}

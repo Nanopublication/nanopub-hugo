@@ -1,0 +1,37 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": [
+    "local>ashleycaselli/renovate-config"
+  ],
+  "automerge": false,
+  "customManagers": [
+    {
+      "customType": "regex",
+      "description": "Track the nanopub-elements version that live sections load from esm.sh",
+      "managerFilePatterns": [
+        "/^hugo\\.toml$/"
+      ],
+      "matchStrings": [
+        "# renovate: datasource=(?<datasource>\\S+) depName=(?<depName>\\S+)\\s+elementsVersion = '(?<currentValue>[^']+)'"
+      ]
+    }
+  ],
+  "packageRules": [
+    {
+      "description": "Release tooling lives in package.json and is not part of the module; its updates must not cut a release",
+      "matchDepTypes": [
+        "devDependencies"
+      ],
+      "semanticCommitType": "chore",
+      "semanticCommitScope": "deps"
+    },
+    {
+      "description": "A nanopub-elements bump changes what every consuming site ships, so it is a real release",
+      "matchDepNames": [
+        "@nanopub/nanopub-elements"
+      ],
+      "semanticCommitType": "chore",
+      "semanticCommitScope": "core-deps"
+    }
+  ]
+}

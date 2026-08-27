@@ -1,0 +1,35 @@
+name: Autorelease
+
+on:
+  push:
+    branches: [ release ]
+    paths-ignore:
+      - 'CHANGELOG.md'
+
+env:
+  GITHUB_USERNAME: ${{ github.actor }}
+  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    needs: test
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Setup Node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24.11.1
+
+      - name: Release
+        run: |
+          npm ci
+          npx semantic-release
+
+      - name: Sync release artifacts
+        uses: knowledgepixels/sync-release-artifacts-action@3926beed487a1c183af52423344bf6ee36fd7b27 # v1.0.0
+        with:
+          main-branch: main
+          release-branch: release
