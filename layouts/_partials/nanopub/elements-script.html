@@ -7,10 +7,17 @@
   caller-supplied page would mark the section page as "script already loaded"
   while emitting the tag into the home page. The section page then rendered a
   <nanopub-list> with nothing to upgrade it.
+
+  The esm.sh import is pinned. Unpinned, every site built with this module
+  silently follows the latest nanopub-elements release, so a breaking change
+  there would break live sections everywhere with no commit to point at. The
+  pinned default lives in this module's hugo.toml; a site overrides it with
+  params.nanopub.elementsVersion.
 */ -}}
+{{- $version := site.Params.nanopub.elementsVersion | default "0.3.0" -}}
 {{- with page -}}
   {{- if not (.Store.Get "nanopubElementsLoaded") -}}
     {{- .Store.Set "nanopubElementsLoaded" true -}}
-    <script type="module" src="https://esm.sh/@nanopub/nanopub-elements"></script>
+    <script type="module" src="https://esm.sh/@nanopub/nanopub-elements@{{ $version }}"></script>
   {{- end -}}
 {{- end -}}
