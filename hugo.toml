@@ -18,4 +18,4 @@ sections = []
 # breaking release upstream cannot change what every site built with this module
 # ships. Override per site with params.nanopub.elementsVersion.
 # renovate: datasource=npm depName=@nanopub/nanopub-elements
-elementsVersion = '0.3.0'
+elementsVersion = '0.4.0'
