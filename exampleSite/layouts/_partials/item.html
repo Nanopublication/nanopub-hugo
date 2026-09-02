@@ -6,6 +6,6 @@
   </div>
   <div class="np-meta">
     {{ with .Date }}{{ if not .IsZero }}<time datetime="{{ .Format "2006-01-02" }}">{{ .Format "2006" }}</time>{{ end }}{{ end }}
-    {{ with .Params.nanopub }}<a class="np-prov" href="{{ printf "%snp?id=%s" $nanodash (. | urlquery) }}" title="{{ . }}">np</a>{{ end }}
+    {{ with .Params.nanopub }}<a class="np-prov" href="{{ printf "%sexplore?id=%s" $nanodash (. | urlquery) }}" title="{{ . }}">np</a>{{ end }}
   </div>
 </li>
