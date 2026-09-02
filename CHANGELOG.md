@@ -1,3 +1,13 @@
+## [1.0.1](https://github.com/Nanopublication/nanopub-hugo/compare/v1.0.0...v1.0.1) (2026-09-02)
+
+### Dependency updates
+
+* **core-deps:** update dependency @nanopub/nanopub-elements to v0.4.0 ([4951805](https://github.com/Nanopublication/nanopub-hugo/commit/4951805343b7d337fb364db3788a5fd253e7a2c0))
+
+### General maintenance
+
+* **exampleSite:** point provenance links at the view Nanodash serves ([081c757](https://github.com/Nanopublication/nanopub-hugo/commit/081c757110529ddad02d2eca2c787d71c32378e8)), closes [#3](https://github.com/Nanopublication/nanopub-hugo/issues/3)
+
 ## 1.0.0 (2026-08-27)
 
 ### Features
