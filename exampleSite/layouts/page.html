@@ -14,7 +14,7 @@
       {{ end }}
     {{ end }}
     {{ with .Params.nanopub }}
-      <p class="np-more"><a href="{{ printf "%snp?id=%s" $nanodash (. | urlquery) }}">Source nanopublication →</a></p>
+      <p class="np-more"><a href="{{ printf "%sexplore?id=%s" $nanodash (. | urlquery) }}">Source nanopublication →</a></p>
     {{ end }}
   </article>
 {{ end }}
